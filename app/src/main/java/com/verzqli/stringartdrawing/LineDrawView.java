@@ -3,6 +3,7 @@ package com.verzqli.stringartdrawing;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.util.AttributeSet;
@@ -17,8 +18,9 @@ public class LineDrawView extends View {
     private int height;
     private Paint paint;
     private Paint bitmapPaint;
-    private int count = 150;
+    private int count = 180;
     private ArrayList linePoint = new ArrayList(count);
+    private int pointX, pointY;
 
     public LineDrawView(Context context) {
         this(context, null);
@@ -27,8 +29,8 @@ public class LineDrawView extends View {
     public LineDrawView(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
         paint = new Paint();
+        paint.setColor(Color.BLACK);
         bitmapPaint = new Paint();
-
     }
 
     @Override
@@ -37,8 +39,7 @@ public class LineDrawView extends View {
         width = w;
         height = h;
         cacheBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        cacheCanvas = new Canvas();
-        cacheCanvas.setBitmap(cacheBitmap);
+        cacheCanvas = new Canvas(cacheBitmap);
         int perimeter = (width + height) << 1;
         int distance = perimeter / count;
         for (int i = 0; i < count; i++) {
@@ -67,6 +68,21 @@ public class LineDrawView extends View {
     }
 
     public void setLine(int x, int y) {
+        double angle = (Math.PI * 2 / count);
+        int centerX = width / 2;
+        int centerY = height / 2;
+        int radius = centerX;
+        if (width > height) {
+            radius = centerY;
+        }
 
+        cacheCanvas.drawLine((float) (centerX + radius * Math.sin(x * angle)), (float) (centerY - radius * Math.cos(x * angle)),
+                (float) (centerX + radius * Math.sin(y * angle)), (float) (centerY - radius * Math.cos(y * angle)), paint);
+//        cacheCanvas.drawLine(0,0,100,100,paint);
+        invalidate();
+    }
+
+    public void setCount(int count) {
+        this.count = count;
     }
 }
