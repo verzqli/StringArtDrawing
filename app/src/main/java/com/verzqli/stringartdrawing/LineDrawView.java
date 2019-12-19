@@ -79,7 +79,6 @@ public class LineDrawView extends View {
         cacheCanvas.drawLine((float) (centerX + radius * Math.sin(x * angle)), (float) (centerY - radius * Math.cos(x * angle)),
                 (float) (centerX + radius * Math.sin(y * angle)), (float) (centerY - radius * Math.cos(y * angle)), paint);
 //        cacheCanvas.drawLine(0,0,100,100,paint);
-        invalidate();
     }
 
     public void setCount(int count) {

@@ -28,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             lineDrawView.setLine(random.nextInt(point), random.nextInt(point));
+            lineDrawView.invalidate();
             handler.sendEmptyMessage(100);
         }
     };
@@ -37,7 +38,9 @@ public class MainActivity extends AppCompatActivity {
     private List<Pair<Integer, Integer>> pairList = new ArrayList(64);
     private List<Integer> shuffleList;
     private int grayValue[][];
+    private int width, height;
     private LineDrawView lineDrawView;
+    private int startPoint;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,19 +55,23 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 // TODO Auto-generated method stub
                 convertGreyImg(bitmap);
-                startDrawing();
+//                startDrawing();
             }
         });
         shuffleList = new ArrayList<>(200);
         lineDrawView = findViewById(R.id.line_draw);
         lineDrawView.setCount(point);
-        for (int i = 0; i < point; i++) {
-            shuffleList.set(i, i);
-        }
+//        for (int i = 0; i < point; i++) {
+//            shuffleList.add(i);
+//        }
+        startPoint = 25;
+        Collections.shuffle(shuffleList);
 
 //        startDrawing();
-//        handler.sendEmptyMessageDelayed(1, 1000);
+        handler.sendEmptyMessageDelayed(1, 1000);
     }
+
+    int angle = (int) (Math.PI / 180);
 
     private void startDrawing() {
 
@@ -72,16 +79,22 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 while (true) {
-                    Collections.shuffle(shuffleList);
-                    for (int i = 0, length = pairList.size(); i < length; i++) {
-                        pairList.set(i, new Pair<>(shuffleList.get(i), shuffleList.get(i + point / 2)));
-                    }
-                    for (int i = 0, length2 = pairList.size(); i < length2; i++) {
-//                        int slope = pairList
+                    int lineCount = startPoint / 45;
+                    int lineIndex = startPoint % 45;
+                    int x, y;
+                    if (lineCount == 0) {
+                        x = width * lineCount / 45;
+                        for (int i = 2; i <= 180; i = i + 2) {
+                            y = (int) ((45 - lineIndex) * Math.tan(2 * Math.PI / 180));
+                            if (x > width || y > height) {
+                                break;
+                            }
+                            grayValue[x++][y] = 1;
+                        }
                     }
 
                     LineCount++;
-                    handler.sendEmptyMessage(100);
+                    handler.sendEmptyMessage(1000);
                 }
             }
         }).start();
@@ -94,11 +107,11 @@ public class MainActivity extends AppCompatActivity {
      * @return 返回转换好的位图
      */
     public int[] convertGreyImg(Bitmap img) {
-        int width = img.getWidth();         //获取位图的宽
-        int height = img.getHeight();       //获取位图的高
+        width = img.getWidth();         //获取位图的宽
+        height = img.getHeight();       //获取位图的高
 //        pixels=new int[height][width];
         int[] pixels = new int[width * height]; //通过位图的大小创建像素点数组
-
+        grayValue = new int[height][width];
         img.getPixels(pixels, 0, width, 0, 0, width, height);
         int alpha = 0xFF << 24;
         for (int i = 0; i < height; i++) {
