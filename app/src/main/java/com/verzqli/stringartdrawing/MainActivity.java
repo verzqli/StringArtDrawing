@@ -10,14 +10,12 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
-import android.util.Pair;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -27,20 +25,24 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
-            lineDrawView.setLine(random.nextInt(point), random.nextInt(point));
+            Log.i("kkkkkk", "handleMessage: " + bestLinePoint.x + "  " + bestLinePoint.y);
+            lineDrawView.setLine(bestLinePoint.x, bestLinePoint.y);
             lineDrawView.invalidate();
-            handler.sendEmptyMessage(100);
+            isDraw = true;
         }
     };
     final Random random = new Random();
     private int LineCount;
-    private int point = 180;
-    private List<Pair<Integer, Integer>> pairList = new ArrayList(64);
-    private List<Integer> shuffleList;
-    private int grayValue[][];
-    private int width, height;
+    private int pointNum = 180;
+    private int selectNum = 70;
+    private int pixels[];
+    private int width, height, radius;
     private LineDrawView lineDrawView;
-    private int startPoint;
+    private List<DrawPoint> pointArray;
+    private List<DrawPoint> pointArrayDraw;
+    private int maxGray = 255;
+    private Point bestLinePoint;
+    private static boolean isDraw = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,30 +50,30 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Button rgb2greyBtn = findViewById(R.id.rgb2greybtn);
         ImageView imageView1 = findViewById(R.id.imageView1);
-        final Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.image);
+        final Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.qqq);
         imageView1.setImageBitmap(bitmap);
         rgb2greyBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 // TODO Auto-generated method stub
-                convertGreyImg(bitmap);
-//                startDrawing();
+
+                startDrawing();
             }
         });
-        shuffleList = new ArrayList<>(200);
-        lineDrawView = findViewById(R.id.line_draw);
-        lineDrawView.setCount(point);
-//        for (int i = 0; i < point; i++) {
-//            shuffleList.add(i);
-//        }
-        startPoint = 25;
-        Collections.shuffle(shuffleList);
 
-//        startDrawing();
-        handler.sendEmptyMessageDelayed(1, 1000);
+        lineDrawView = findViewById(R.id.line_draw);
+        lineDrawView.setCount(pointNum);
+        convertGreyImg(bitmap);
+        radius = (width > height ? height : width) / 2;
+
+        pointArray = new ArrayList<>();
+        pointArrayDraw = new ArrayList<>();
+        for (int i = 0; i < pointNum; i++) {
+            pointArray.add(new DrawPoint(radius + radius * Math.sin(2 * Math.PI * i / pointNum), radius - radius * Math.cos(2 * Math.PI * i / pointNum)));
+        }
+        pointArrayDraw.addAll(pointArray);
     }
 
-    int angle = (int) (Math.PI / 180);
 
     private void startDrawing() {
 
@@ -79,25 +81,87 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 while (true) {
-                    int lineCount = startPoint / 45;
-                    int lineIndex = startPoint % 45;
-                    int x, y;
-                    if (lineCount == 0) {
-                        x = width * lineCount / 45;
-                        for (int i = 2; i <= 180; i = i + 2) {
-                            y = (int) ((45 - lineIndex) * Math.tan(2 * Math.PI / 180));
-                            if (x > width || y > height) {
-                                break;
-                            }
-                            grayValue[x++][y] = 1;
-                        }
+                    if (isDraw) {
+                        bestLinePoint = getPixelArrayFromLine();
+                        fadeLineFromImg(pointArray.get(bestLinePoint.x).x, pointArray.get(bestLinePoint.x).y
+                                , pointArray.get(bestLinePoint.y).x, pointArray.get(bestLinePoint.y).y);
+                        handler.sendEmptyMessage(1);
+                        LineCount++;
+                        isDraw = false;
                     }
-
-                    LineCount++;
-                    handler.sendEmptyMessage(1000);
                 }
+//                    handler.sendEmptyMessage(1000);
             }
         }).start();
+    }
+
+    private Point getPixelArrayFromLine() {
+        List<Point> linePointList = new ArrayList<>();
+        for (int i = 0; i < selectNum; i++) {
+            int startPoint = random.nextInt(pointNum);
+            int endPoint = random.nextInt(pointNum);
+            if (startPoint == endPoint) {
+                i--;
+            } else {
+                linePointList.add(new Point(startPoint, endPoint));
+            }
+        }
+        double minbrightness = 255;
+        int bestIndex = 0;
+        for (int i = 0, length = linePointList.size(); i < length; i++) {
+            Point item = linePointList.get(i);
+            double startX = pointArray.get(item.x).x;
+            double startY = pointArray.get(item.x).y;
+
+            double endX = pointArray.get(item.y).x;
+            double endY = pointArray.get(item.y).y;
+
+            double averageBrightness = getLineBrightness(startX, startY, endX, endY);
+            if (averageBrightness < minbrightness) {
+                bestIndex = i;
+                minbrightness = averageBrightness;
+            }
+        }
+        return linePointList.get(bestIndex);
+    }
+
+    private double getLineBrightness(double x1, double y1, double x2, double y2) {
+        int result = 0;
+        double distanceX = Math.floor(Math.abs(x1 - x2));
+        double distanceY = Math.floor(Math.abs(y1 - y2));
+        double distance = distanceX > distanceY ? distanceX : distanceY;
+        for (int i = 0; i < distance; i++) {
+            int startX = (int) Math.floor(x1 + (x2 - x1) * i / distance);
+            int startY = (int) Math.floor(y1 + (y2 - y1) * i / distance);
+            int b = getPiexl(startX, startY);
+            result += b;
+        }
+        return result / distance;
+    }
+
+
+    private void fadeLineFromImg(double x1, double y1, double x2, double y2) {
+        double distanceX = Math.floor(Math.abs(x1 - x2));
+        double distanceY = Math.floor(Math.abs(y1 - y2));
+        double distance = distanceX > distanceY ? distanceX : distanceY;
+        for (int i = 0; i < distance; i++) {
+            int startX = (int) Math.floor(x1 + (x2 - x1) * i / distance);
+            int startY = (int) Math.floor(y1 + (y2 - y1) * i / distance);
+
+            int index = startY * width + startX;
+            if (index >= pixels.length) {
+                index = pixels.length-1;
+            }
+            pixels[index] +=80;
+        }
+    }
+
+    private int getPiexl(int startX, int startY) {
+        int index = startY * width + startX;
+        if (index >= pixels.length) {
+            index = pixels.length-1;
+        }
+        return pixels[index];
     }
 
     /**
@@ -110,8 +174,7 @@ public class MainActivity extends AppCompatActivity {
         width = img.getWidth();         //获取位图的宽
         height = img.getHeight();       //获取位图的高
 //        pixels=new int[height][width];
-        int[] pixels = new int[width * height]; //通过位图的大小创建像素点数组
-        grayValue = new int[height][width];
+        pixels = new int[width * height]; //通过位图的大小创建像素点数组
         img.getPixels(pixels, 0, width, 0, 0, width, height);
         int alpha = 0xFF << 24;
         for (int i = 0; i < height; i++) {
@@ -124,15 +187,14 @@ public class MainActivity extends AppCompatActivity {
                 grey = (int) ((float) red * 0.3 + (float) green * 0.59 + (float) blue * 0.11);
 //                grey = alpha | (grey << 16) | (grey << 8) | grey;
 
-//                pixels[width * i + j] = grey;
-                grayValue[height][width] = grey;
+                pixels[width * i + j] = grey;
             }
         }
 //        StringBuilder a = new StringBuilder();
 //        for (int i = 0; i < height; i++) {
 //            a.append("[");
 //            for (int j = 0; j < width; j++) {
-//                a.append(pixels[width * i + j]).append(",");
+//                a.append(pixels[]).append(",");
 //            }
 //            a.append("]");
 //            Log.i("aaaa", "convertGreyImg: " + a.toString());
